@@ -14,6 +14,7 @@ public class ConfigHandler {
   private static LimitConfig limits;
   private static SpawnPerMobConfig perMob;
   private static SpawnAttemptConfig probability;
+  private static ForgeConfigSpec.BooleanValue loggingEnabled;
   
   static {
     prepare(SERVER_BUILDER);
@@ -22,7 +23,11 @@ public class ConfigHandler {
   
   private static void prepare(ForgeConfigSpec.Builder builder) {
     LimitConfig limitConfig = new LimitConfig();
-    
+  
+    builder.push("General");
+    loggingEnabled = builder.define("enableLogging", false);
+    builder.pop();
+  
     builder
         .comment("Here you can change vanilla spawn limits. \nLimits are applied per mob category and defines how " +
             "many mobs can be spawned in certain area. \nIt affects attempts of spawn of animals and monsters but it does not " +
@@ -31,7 +36,7 @@ public class ConfigHandler {
     int max = 2000;
     limitConfig.enableLimitModification = builder.comment("When false spawn limits are not changed")
         .define("enableLimitModification", false);
-    
+  
     limitConfig.monster = builder
         .comment("Limit for monsters - hostile mobs\nVanilla default: "
             + EntityClassification.MONSTER.getMaxInstancesPerChunk())
@@ -116,6 +121,10 @@ public class ConfigHandler {
   
   public static SpawnAttemptConfig getProbability() {
     return probability;
+  }
+  
+  public static boolean isLoggingEnabled() {
+    return loggingEnabled.get();
   }
   
   public static void validate() {

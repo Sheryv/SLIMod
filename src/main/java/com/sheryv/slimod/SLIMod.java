@@ -21,7 +21,13 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Mod(SLIMod.ID)
 public class SLIMod {
@@ -49,12 +55,41 @@ public class SLIMod {
   
   private static void updateVanillaSpawnCapacity(EntityClassification e, int max) {
     try {
-      ObfuscationReflectionHelper.setPrivateValue(EntityClassification.class, e, max, "max");
-      LOGGER.info("Changed vanilla spawn limit for '" + e + "' to " + e.getMaxInstancesPerChunk());
+      Optional<String> fieldName = findFieldName(e);
+      if (fieldName.isPresent()) {
+        ObfuscationReflectionHelper.setPrivateValue(EntityClassification.class, e, max, fieldName.get());
+        if (ConfigHandler.isLoggingEnabled()) {
+          LOGGER.info("Changed vanilla spawn limit for '" + e + "' to " + e.getMaxInstancesPerChunk());
+        }
+      } else {
+        LOGGER.error("Failed to set spawn limit for '" + e + "' to " + max + ". Cannot find field max.");
+      }
     } catch (Exception c) {
       LOGGER.error("Failed to set spawn limit for '" + e + "' to " + max, c);
     }
   }
+  
+  private static Optional<String> findFieldName(EntityClassification classification) {
+    Map<String, Integer> fields = Arrays.stream(EntityClassification.class.getDeclaredFields())
+        .filter(f -> !Modifier.isStatic(f.getModifiers()) && (int.class.equals(f.getType()) || Integer.class.equals(f.getType())))
+        .collect(Collectors.toMap(
+            Field::getName,
+            f -> Optional.ofNullable(ObfuscationReflectionHelper.getPrivateValue(EntityClassification.class, classification, f.getName()))
+                .map(r -> (Integer) r)
+                .orElse(-1)
+            )
+        );
+    
+    Optional<String> target = fields.entrySet().stream()
+        .filter(e -> classification.getMaxInstancesPerChunk() == e.getValue()).map(Map.Entry::getKey)
+        .findFirst();
+    
+    if (target.isPresent())
+      return target;
+    
+    return fields.entrySet().stream().filter(e -> e.getValue() != 32 && e.getValue() != 128).map(Map.Entry::getKey).findFirst();
+  }
+  
   
   @SubscribeEvent(priority = EventPriority.LOW)
   public void onBiomeLoadingEvent(BiomeLoadingEvent event) {
@@ -75,7 +110,9 @@ public class SLIMod {
             if (entry.getAddIfMissing() || current != null) {
               MobSpawnInfo.Spawners changed = new MobSpawnInfo.Spawners(entity, entry.getWeight(), entry.getGroupMinSize(), entry.getGroupMaxSize());
               spawners.add(changed);
-              SLIMod.LOGGER.debug(String.format("Changed spawn for %25s in %42s %15s to %s", entry.getEntity(), event.getName(), "[" + event.getCategory() + "]", changed));
+              if (ConfigHandler.isLoggingEnabled()) {
+                SLIMod.LOGGER.debug(String.format("Changed spawn for %25s in %42s %15s to %s", entry.getEntity(), event.getName(), "[" + event.getCategory() + "]", changed));
+              }
             }
           }
         }
@@ -116,10 +153,6 @@ public class SLIMod {
   
   private void preInit(final FMLCommonSetupEvent event) {
     reloadConfig();
-  }
-  
-  public void reloadBiomeConfig(String biomeName, List<MobSpawnInfo.Spawners> spawners) {
-  
   }
   
   @SubscribeEvent

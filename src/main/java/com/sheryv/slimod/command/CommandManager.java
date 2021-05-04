@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
 import com.sheryv.slimod.SLIMod;
 import com.sheryv.slimod.config.ConfigProvider;
 import net.minecraft.command.CommandSource;
@@ -91,16 +92,16 @@ public class CommandManager {
           try {
             ServerPlayerEntity player = context.getSource().getPlayerOrException();
             ServerWorld worldServer = player.getLevel();
-            
+  
             Biome biome = worldServer.getBiome(player.blockPosition());
-            SLIMod.LOGGER.debug("Biome at player {} {}", biome.getRegistryName(), biome.getBiomeCategory());
-            SLIMod.LOGGER.debug("MobSettings.probability: {}", biome.getMobSettings().getCreatureProbability());
+            print(String.format("Biome at player %s %s", biome.getRegistryName(), biome.getBiomeCategory()), context);
+            print(String.format("MobSettings.probability: %s", biome.getMobSettings().getCreatureProbability()), context);
+  
             String sp = biome.getMobSettings().getSpawnerTypes()
                 .stream()
                 .map(t -> "[" + t.getName() + "] max=" + t.getMaxInstancesPerChunk() + "\n" + biome.getMobSettings().getMobs(t).stream().map(MobSpawnInfo.Spawners::toString).collect(Collectors.joining(",\n\t", "\t", "\n")))
                 .collect(Collectors.joining("\n"));
-            SLIMod.LOGGER.debug("MobSettings.spawners: \n{}", sp);
-            
+            print(String.format("MobSettings.spawners: \n%s", sp), context);
           } catch (Exception e) {
             SLIMod.LOGGER.error("Debug error", e);
           }
@@ -108,17 +109,18 @@ public class CommandManager {
         }));
   }
   
+  private static void print(String text, CommandContext<CommandSource> context) {
+    context.getSource().sendSuccess(new StringTextComponent(text), true);
+    SLIMod.LOGGER.info(text);
+  }
   
   public static void register(CommandDispatcher<CommandSource> dispatcher) {
     LiteralArgumentBuilder<CommandSource> builder = Commands.literal(MOD_LITERAL)
         .then(registerReload(dispatcher))
         .then(registerKill(dispatcher));
-    if (SLIMod.LOGGER.isDebugEnabled()) {
-      builder.then(registerDebug(dispatcher));
-    }
+    builder.then(registerDebug(dispatcher));
     
     dispatcher.register(builder);
-//    dispatcher.register(Commands.literal(MOD_LITERAL).redirect(commands));
   }
   
   

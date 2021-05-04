@@ -13,7 +13,9 @@ public class ConfigProvider {
     CommentedConfig config = loadConfig(FMLPaths.CONFIGDIR.get().resolve(SLIMod.NAME + ".toml"));
     ConfigHandler.validate();
     ConfigHandler.SERVER.setConfig(config);
-    SLIMod.LOGGER.info("Loaded config: {}, {}, {}", ConfigHandler.getLimits(), ConfigHandler.getProbability(), ConfigHandler.getPerMob());
+    if (ConfigHandler.isLoggingEnabled()) {
+      SLIMod.LOGGER.info("Loaded config: {}, {}, {}", ConfigHandler.getLimits(), ConfigHandler.getProbability(), ConfigHandler.getPerMob());
+    }
   }
   
   public static void reload() {
