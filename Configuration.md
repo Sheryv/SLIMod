@@ -1,5 +1,9 @@
 Configuration
 ====
+------
+# **OUTDATED**
+
+------
 
 File `SLI-SpawnLimitIncrease.toml` in config directory.
 

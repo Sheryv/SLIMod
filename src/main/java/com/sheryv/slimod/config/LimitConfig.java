@@ -9,6 +9,8 @@ public class LimitConfig {
   ForgeConfigSpec.IntValue ambient;
   ForgeConfigSpec.IntValue waterCreature;
   ForgeConfigSpec.IntValue waterAmbient;
+  ForgeConfigSpec.IntValue undergroundWaterCreature;
+  ForgeConfigSpec.IntValue axolotls;
   
   public Boolean getEnableLimitModification() {
     return enableLimitModification.get();
@@ -34,6 +36,14 @@ public class LimitConfig {
     return waterAmbient.get();
   }
   
+  public Integer getUndergroundWaterCreature() {
+    return undergroundWaterCreature.get();
+  }
+  
+  public Integer getAxolotls() {
+    return axolotls.get();
+  }
+  
   public void validate() {
   
   }
@@ -47,6 +57,8 @@ public class LimitConfig {
         ", ambient=" + ambient.get() +
         ", waterCreature=" + waterCreature.get() +
         ", waterAmbient=" + waterAmbient.get() +
+        ", undergroundWaterCreature=" + undergroundWaterCreature.get() +
+        ", axolotls=" + axolotls.get() +
         '}';
   }
 }

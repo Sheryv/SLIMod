@@ -1,0 +1,11 @@
+
+{
+  "type": "sli_mcmod:set_creature_spawn_probability",
+  "default_probability_multiplier": 1.5,
+  "overwrites_per_biome": [
+    {
+      "biomes": "#forge:is_plains",
+      "probability_multiplier": 3.0
+    }
+  ]
+}

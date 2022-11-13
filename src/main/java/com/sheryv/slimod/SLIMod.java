@@ -1,23 +1,25 @@
 package com.sheryv.slimod;
 
+import com.mojang.serialization.Codec;
 import com.sheryv.slimod.command.CommandManager;
-import com.sheryv.slimod.config.*;
-import net.minecraft.entity.EntityClassification;
-import net.minecraft.entity.EntityType;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.world.biome.MobSpawnInfo;
+import com.sheryv.slimod.config.ConfigHandler;
+import com.sheryv.slimod.config.LimitConfig;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.world.MobSpawnInfoBuilder;
+import net.minecraftforge.common.world.BiomeModifier;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.world.BiomeLoadingEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,7 +27,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -36,30 +37,46 @@ public class SLIMod {
   public static final Logger LOGGER = LogManager.getLogger(ID);
   
   public SLIMod() {
-    FMLJavaModLoadingContext.get().getModEventBus().addListener(this::preInit);
+    IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
+    bus.addListener(this::onCommonSetup);
+    
+    ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ConfigHandler.COMMON_SPEC, NAME + ".toml");
+    
     MinecraftForge.EVENT_BUS.register(this);
-    ConfigProvider.loadServerConfig();
+    
+    BIOME_MODIFIER_SERIALIZERS.register(bus);
   }
+  
+  public static final DeferredRegister<Codec<? extends BiomeModifier>> BIOME_MODIFIER_SERIALIZERS = DeferredRegister.create(ForgeRegistries.Keys.BIOME_MODIFIER_SERIALIZERS, ID);
+  
+  private static final RegistryObject<Codec<SpawnProbabilityBiomeModifier>> SPAWN_PROBABILITY_CODEC =
+      BIOME_MODIFIER_SERIALIZERS.register(SpawnProbabilityBiomeModifier.NAME, SpawnProbabilityBiomeModifier.CODEC);
+  private static final RegistryObject<Codec<SpawnRateBiomeModifier>> SPAWN_RATE_CODEC =
+      BIOME_MODIFIER_SERIALIZERS.register(SpawnRateBiomeModifier.NAME, SpawnRateBiomeModifier.CODEC);
   
   public static void reloadConfig() {
     LimitConfig limits = ConfigHandler.getLimits();
     
     if (limits.getEnableLimitModification()) {
-      updateVanillaSpawnCapacity(EntityClassification.CREATURE, limits.getCreature());
-      updateVanillaSpawnCapacity(EntityClassification.MONSTER, limits.getMonster());
-      updateVanillaSpawnCapacity(EntityClassification.WATER_AMBIENT, limits.getWaterAmbient());
-      updateVanillaSpawnCapacity(EntityClassification.WATER_CREATURE, limits.getWaterCreature());
-      updateVanillaSpawnCapacity(EntityClassification.AMBIENT, limits.getAmbient());
+      updateVanillaSpawnCapacity(MobCategory.CREATURE, limits.getCreature());
+      updateVanillaSpawnCapacity(MobCategory.MONSTER, limits.getMonster());
+      updateVanillaSpawnCapacity(MobCategory.WATER_AMBIENT, limits.getWaterAmbient());
+      updateVanillaSpawnCapacity(MobCategory.WATER_CREATURE, limits.getWaterCreature());
+      updateVanillaSpawnCapacity(MobCategory.AMBIENT, limits.getAmbient());
+      updateVanillaSpawnCapacity(MobCategory.UNDERGROUND_WATER_CREATURE, limits.getUndergroundWaterCreature());
+      updateVanillaSpawnCapacity(MobCategory.AXOLOTLS, limits.getAxolotls());
     }
   }
   
-  private static void updateVanillaSpawnCapacity(EntityClassification e, int max) {
+  private static void updateVanillaSpawnCapacity(MobCategory e, int max) {
     try {
-      Optional<String> fieldName = findFieldName(e);
-      if (fieldName.isPresent()) {
-        ObfuscationReflectionHelper.setPrivateValue(EntityClassification.class, e, max, fieldName.get());
-        if (ConfigHandler.isLoggingEnabled()) {
-          LOGGER.info("Changed vanilla spawn limit for '" + e + "' to " + e.getMaxInstancesPerChunk());
+      Optional<Field> field = findField(e);
+      if (field.isPresent()) {
+        if (!Integer.valueOf(max).equals(ObfuscationReflectionHelper.getPrivateValue(MobCategory.class, e, field.get().getName()))) {
+          ObfuscationReflectionHelper.setPrivateValue(MobCategory.class, e, max, field.get().getName());
+          if (ConfigHandler.isLoggingEnabled()) {
+            LOGGER.info("Changed vanilla spawn limit for '" + e + "' to " + e.getMaxInstancesPerChunk());
+          }
         }
       } else {
         LOGGER.error("Failed to set spawn limit for '" + e + "' to " + max + ". Cannot find field max.");
@@ -69,89 +86,28 @@ public class SLIMod {
     }
   }
   
-  private static Optional<String> findFieldName(EntityClassification classification) {
-    Map<String, Integer> fields = Arrays.stream(EntityClassification.class.getDeclaredFields())
+  private static Optional<Field> findField(MobCategory classification) {
+    List<Pair<Field, Integer>> fields = Arrays.stream(MobCategory.class.getDeclaredFields())
         .filter(f -> !Modifier.isStatic(f.getModifiers()) && (int.class.equals(f.getType()) || Integer.class.equals(f.getType())))
-        .collect(Collectors.toMap(
-            Field::getName,
-            f -> Optional.ofNullable(ObfuscationReflectionHelper.getPrivateValue(EntityClassification.class, classification, f.getName()))
+        .map(f -> Pair.of(f,
+            Optional.ofNullable(ObfuscationReflectionHelper.getPrivateValue(MobCategory.class, classification, f.getName()))
                 .map(r -> (Integer) r)
                 .orElse(-1)
-            )
-        );
+        ))
+        .collect(Collectors.toList());
     
-    Optional<String> target = fields.entrySet().stream()
-        .filter(e -> classification.getMaxInstancesPerChunk() == e.getValue()).map(Map.Entry::getKey)
+    Optional<Field> target = fields.stream()
+        .filter(e -> "max".equals(e.getKey().getName()) || classification.getMaxInstancesPerChunk() == e.getValue()).map(Pair::getKey)
         .findFirst();
     
     if (target.isPresent())
       return target;
     
-    return fields.entrySet().stream().filter(e -> e.getValue() != 32 && e.getValue() != 128).map(Map.Entry::getKey).findFirst();
+    return fields.stream().filter(e -> e.getValue() != 64 && e.getValue() != 128).map(Pair::getKey).findFirst();
   }
   
-  
-  @SubscribeEvent(priority = EventPriority.LOW)
-  public void onBiomeLoadingEvent(BiomeLoadingEvent event) {
-    MobSpawnInfoBuilder spawner = event.getSpawns();
-    SpawnPerMobConfig perMob = ConfigHandler.getPerMob();
-    if (perMob.getEnableSpawnerModification()) {
-      for (SpawnPerMobConfig.ConfigEntry entry : perMob.getEntries()) {
-        if (isAllowedBiome(entry, event.getName().toString(), event.getCategory())) {
-          EntityType<?> entity = ForgeRegistries.ENTITIES.getValue(new ResourceLocation(entry.getEntity()));
-          if (entity != null) {
-            List<MobSpawnInfo.Spawners> spawners = spawner.getSpawner(entity.getCategory());
-            MobSpawnInfo.Spawners current = spawners.stream()
-                .filter(s -> s.type.getRegistryName().equals(entity.getRegistryName()))
-                .findFirst().orElse(null);
-            if (current != null) {
-              spawners.remove(current);
-            }
-            if (entry.getAddIfMissing() || current != null) {
-              MobSpawnInfo.Spawners changed = new MobSpawnInfo.Spawners(entity, entry.getWeight(), entry.getGroupMinSize(), entry.getGroupMaxSize());
-              spawners.add(changed);
-              if (ConfigHandler.isLoggingEnabled()) {
-                SLIMod.LOGGER.debug(String.format("Changed spawn for %25s in %42s %15s to %s", entry.getEntity(), event.getName(), "[" + event.getCategory() + "]", changed));
-              }
-            }
-          }
-        }
-      }
-    }
-    SpawnAttemptConfig probabilityConfig = ConfigHandler.getProbability();
-    float base = spawner.getProbability();
-    setSpawnProbability(spawner, (float) (base * probabilityConfig.getDefaultCreatureSpawnProbabilityMultiplier()));
-    
-    for (SpawnAttemptConfig.ConfigEntry entry : probabilityConfig.getEntries()) {
-      if (entry.getAffectedBiomes().contains(event.getName().toString())) {
-        setSpawnProbability(spawner, (float) (base * entry.getProbability()));
-      }
-    }
-  }
-  
-  private boolean isAllowedBiome(SpawnPerMobConfig.ConfigEntry entry, String biome, Biome.Category category) {
-    boolean affected = entry.getAffectedBiomes().isEmpty() || entry.getAffectedBiomes().contains(biome);
-    boolean notForbidden = entry.getForbiddenBiomeCategories().stream()
-        .noneMatch(c -> c.toUpperCase().equals(category.toString()) || c.toUpperCase().equals(category.getName()));
-    return affected && notForbidden;
-  }
-  
-  private void setSpawnProbability(MobSpawnInfoBuilder spawner, Float probability) {
-    if (Math.abs(probability - 0.1f) < 0.0001f) {
-      return;
-    }
-    try {
-      spawner.creatureGenerationProbability(probability);
-      if (spawner.getProbability() != probability) {
-        ObfuscationReflectionHelper.setPrivateValue(MobSpawnInfoBuilder.class, spawner, probability, "creatureGenerationProbability");
-        LOGGER.info("Changed vanilla spawn probability to " + spawner.getProbability());
-      }
-    } catch (Exception c) {
-      LOGGER.error("Failed to set spawn probability to " + probability, c);
-    }
-  }
-  
-  private void preInit(final FMLCommonSetupEvent event) {
+  private void onCommonSetup(FMLCommonSetupEvent event) {
+    ConfigHandler.COMMON_SPEC.getValues();
     reloadConfig();
   }
   

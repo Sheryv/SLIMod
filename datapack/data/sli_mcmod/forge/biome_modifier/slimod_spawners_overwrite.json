@@ -1,0 +1,61 @@
+{
+  "type": "sli_mcmod:overwrite_spawns",
+  "per_biomes": [
+    {
+      "biomes_any_match": [
+        "#forge:is_plains",
+        "#minecraft:is_savanna"
+      ],
+      "spawners": [
+        {
+          "spawner": {
+            "type": "minecraft:cow",
+            "weight": 5,
+            "minCount": 5,
+            "maxCount": 7
+          }
+        },
+        {
+          "spawner": {
+            "type": "minecraft:chicken",
+            "weight": 6,
+            "minCount": 5,
+            "maxCount": 8
+          }
+        },
+        {
+          "spawner": {
+            "type": "minecraft:sheep",
+            "weight": 6,
+            "minCount": 4,
+            "maxCount": 6
+          }
+        },
+        {
+          "spawner": {
+            "type": "minecraft:pig",
+            "weight": 6,
+            "minCount": 5,
+            "maxCount": 8
+          }
+        }
+      ]
+    },
+    {
+      "biomes_all_match": [
+        "#forge:is_hot",
+        "#minecraft:is_overworld"
+      ],
+      "spawners": [
+        {
+          "spawner":   {
+            "type": "minecraft:enderman",
+            "weight": 40,
+            "minCount": 2,
+            "maxCount": 4
+          }
+        }
+      ]
+    }
+  ]
+}
