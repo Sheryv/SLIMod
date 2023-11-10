@@ -99,14 +99,14 @@ public class CommandManager {
         .executes((context -> {
           try {
             var player = context.getSource().getPlayerOrException();
-            var worldServer = player.getLevel();
+            var worldServer = context.getSource().getLevel();
             
             var biomeHolder = worldServer.getBiome(player.blockPosition());
             var biome = worldServer.getBiome(player.blockPosition()).get();
             
             print(String.format("Biome at player position %s%s%s \n%s",
                 ChatFormatting.AQUA, biomeHolder.unwrapKey().map(k -> k.location().toString()).orElse(""), ChatFormatting.RESET,
-                biomeHolder.tags().map(t -> " - " + t.toString()).collect(Collectors.joining("\n"))), player);
+                biomeHolder.tags().map(t -> " - " + t.location()).collect(Collectors.joining("\n"))), player);
             
             print(String.format("MobSettings > creature spawn probability: %s%s", biome.getMobSettings().getCreatureProbability(), ChatFormatting.AQUA), player);
             

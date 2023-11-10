@@ -1,0 +1,27 @@
+
+{
+  "type": "sli_mcmod:set_creature_spawn_probability",
+  "default_probability_multiplier": 1.5,
+  "overwrites_per_biome": [
+    {
+      "biomes": "#forge:is_plains",
+      "probability_multiplier": 2.5
+    },
+    {
+      "biomes": "#minecraft:is_forest",
+      "probability_multiplier": 1.0
+    },
+    {
+      "biomes": "minecraft:windswept_hills",
+      "probability_multiplier": 3.0
+    },
+    {
+      "biomes": "minecraft:birch_forest",
+      "probability_multiplier": 3.1
+    },
+    {
+      "biomes": "minecraft:old_growth_birch_forest",
+      "probability_multiplier": 3.1
+    }
+  ]
+}
