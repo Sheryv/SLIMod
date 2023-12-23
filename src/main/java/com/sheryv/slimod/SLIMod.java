@@ -72,10 +72,11 @@ public class SLIMod {
     try {
       Optional<Field> field = findField(e);
       if (field.isPresent()) {
-        if (!Integer.valueOf(max).equals(ObfuscationReflectionHelper.getPrivateValue(MobCategory.class, e, field.get().getName()))) {
+        Object current = ObfuscationReflectionHelper.getPrivateValue(MobCategory.class, e, field.get().getName());
+        if (!Integer.valueOf(max).equals(current)) {
           ObfuscationReflectionHelper.setPrivateValue(MobCategory.class, e, max, field.get().getName());
           if (ConfigHandler.isLoggingEnabled()) {
-            LOGGER.info("Changed vanilla spawn limit for '" + e + "' to " + e.getMaxInstancesPerChunk());
+            LOGGER.info("Changed vanilla spawn limit for '" + e + "' from " + current + " to " + e.getMaxInstancesPerChunk());
           }
         }
       } else {
