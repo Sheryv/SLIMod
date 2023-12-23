@@ -31,7 +31,7 @@ public record SpawnRateBiomeModifier(List<BiomeSpawners> spawners) implements Bi
       var settings = builder.getMobSpawnSettings();
       for (BiomeSpawners spawnersForBiome : spawners) {
         if (spawnersForBiome.biomesAnyMatch().stream().anyMatch(b -> b.contains(biome))
-            || (spawnersForBiome.biomesAllMatch().stream().allMatch(b -> b.contains(biome)))) {
+            || (!spawnersForBiome.biomesAllMatch().isEmpty() && spawnersForBiome.biomesAllMatch().stream().allMatch(b -> b.contains(biome)))) {
           
           for (SpawnerDef spawnerDef : spawnersForBiome.spawners()) {
             var newData = spawnerDef.spawner();
