@@ -93,9 +93,8 @@ public class CommandManager {
         }));
   }
   
-  private static LiteralArgumentBuilder<CommandSourceStack> registerDebug(CommandDispatcher<CommandSourceStack> dispatcher) {
+  private static LiteralArgumentBuilder<CommandSourceStack> registerInfoCmd(CommandDispatcher<CommandSourceStack> dispatcher) {
     return Commands.literal("info")
-        .requires(cs -> cs.hasPermission(1))
         .executes((context -> {
           try {
             var player = context.getSource().getPlayerOrException();
@@ -104,9 +103,8 @@ public class CommandManager {
             var biomeHolder = worldServer.getBiome(player.blockPosition());
             var biome = worldServer.getBiome(player.blockPosition()).get();
             
-            print(String.format("Biome at player position %s%s%s \n%s",
-                ChatFormatting.AQUA, biomeHolder.unwrapKey().map(k -> k.location().toString()).orElse(""), ChatFormatting.RESET,
-                biomeHolder.tags().map(t -> " - " + t.location()).collect(Collectors.joining("\n"))), player);
+            print(String.format("Biome at player position %s%s%s",
+                ChatFormatting.AQUA, biomeHolder.unwrapKey().map(k -> k.location().toString()).orElse(""), ChatFormatting.RESET), player);
             
             print(String.format("MobSettings > creature spawn probability: %s%s", biome.getMobSettings().getCreatureProbability(), ChatFormatting.AQUA), player);
             
@@ -142,6 +140,26 @@ public class CommandManager {
         }));
   }
   
+  private static LiteralArgumentBuilder<CommandSourceStack> registerBiomeTagsCmd(CommandDispatcher<CommandSourceStack> dispatcher) {
+    return Commands.literal("biome_tags")
+        .executes((context -> {
+          try {
+            var player = context.getSource().getPlayerOrException();
+            var worldServer = context.getSource().getLevel();
+            
+            var biomeHolder = worldServer.getBiome(player.blockPosition());
+            
+            print(String.format("Biome at player position %s%s%s \nTags:\n%s",
+                ChatFormatting.AQUA, biomeHolder.unwrapKey().map(k -> k.location().toString()).orElse(""), ChatFormatting.RESET,
+                biomeHolder.tags().map(t -> " - " + t.location()).collect(Collectors.joining("\n"))), player);
+            
+          } catch (Exception e) {
+            SLIMod.LOGGER.error("Debug error", e);
+          }
+          return 0;
+        }));
+  }
+  
   private static void print(String text, ServerPlayer player) {
     player.sendSystemMessage(Component.literal(text));
     if (ConfigHandler.isLoggingEnabled()) {
@@ -152,8 +170,9 @@ public class CommandManager {
   public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
     LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal(MOD_LITERAL)
         .then(registerReload(dispatcher))
+        .then(registerInfoCmd(dispatcher))
+        .then(registerBiomeTagsCmd(dispatcher))
         .then(registerKill(dispatcher));
-    builder.then(registerDebug(dispatcher));
     
     dispatcher.register(builder);
   }

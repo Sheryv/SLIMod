@@ -46,7 +46,8 @@
     {
       "biomes_any_match": [
         "minecraft:cherry_grove",
-        "minecraft:meadow"
+        "minecraft:meadow",
+        "minecraft:taiga"
       ],
       "spawners": [
         {
